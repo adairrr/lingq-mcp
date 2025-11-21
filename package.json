@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "pnpm run build && node dist/index.js",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "test:integration": "npx ts-node tests/integration.test.ts",
+    "test:railway": "MCP_SERVER_URL=https://lingq-mcp-production.up.railway.app/mcp npx ts-node tests/integration.test.ts"
   },
   "keywords": ["mcp", "lingq", "language-learning"],
   "author": "",

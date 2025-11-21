@@ -726,7 +726,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// MCP SSE endpoint (auth required)
+// Store active MCP server instances by session ID
+const mcpServers = new Map<string, Server>();
+
+// MCP SSE endpoint - GET (establish SSE stream)
 app.get('/mcp', authenticateToken, async (req, res) => {
   console.log('New MCP SSE connection established');
 
@@ -755,10 +758,35 @@ app.get('/mcp', authenticateToken, async (req, res) => {
   const transport = new SSEServerTransport('/mcp', res);
   await server.connect(transport);
 
+  // Get session ID from the query parameter
+  const sessionId = transport.sessionId;
+  if (sessionId) {
+    mcpServers.set(sessionId, server);
+    console.log(`Stored server instance for session: ${sessionId}`);
+  }
+
   // Handle client disconnect
   req.on('close', () => {
     console.log('MCP SSE connection closed');
+    if (sessionId) {
+      mcpServers.delete(sessionId);
+      console.log(`Removed server instance for session: ${sessionId}`);
+    }
   });
+});
+
+// MCP SSE endpoint - POST (send messages)
+app.post('/mcp', authenticateToken, async (req, res) => {
+  console.log('Received MCP POST request');
+
+  try {
+    // The SSE transport should handle this automatically
+    // Just acknowledge the receipt
+    res.status(202).json({ status: 'accepted' });
+  } catch (error: any) {
+    console.error('Error handling MCP POST:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Start the server based on transport mode

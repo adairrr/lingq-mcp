@@ -305,6 +305,42 @@ HTTP Request → Process Text → MCP Tool (lingq_create_lesson) → Success Not
 - Use `minimal: true` (default) for all list operations
 - Set `maxPages` to limit search depth (default: 20 pages = ~1000 lessons)
 
+### Claude Code Integration (Local Only)
+
+**IMPORTANT:** Claude Code only supports stdio transport, NOT HTTP transport for this server.
+
+**Why HTTP doesn't work with Claude Code:**
+- Claude Code requires OAuth 2.0 Device Authorization Grant for HTTP MCP servers
+- Our Railway server uses simple Bearer token authentication (designed for n8n)
+- Claude Code will fail trying to POST to `/register` and `/token` OAuth endpoints that don't exist
+
+**Configuration (.mcp.json):**
+```json
+{
+  "mcpServers": {
+    "lingq": {
+      "command": "node",
+      "args": ["/path/to/lingq-mcp/dist/index.js"],
+      "env": {
+        "LINGQ_API_KEY": "your_api_key_here",
+        "TRANSPORT_MODE": "stdio"
+      }
+    }
+  }
+}
+```
+
+**Setup:**
+1. Build the project: `pnpm run build`
+2. Configure .mcp.json with stdio transport (as shown above)
+3. Run `/mcp` in Claude Code to connect
+4. All MCP tools will be available locally
+
+**Best Practices:**
+- Use **Claude Code** for local development and testing via stdio
+- Use **Railway HTTP server** for n8n workflows and automation
+- Don't try to connect Claude Code to the Railway HTTP endpoint
+
 ### Local Development & Testing
 
 **Testing HTTP Mode Locally:**
