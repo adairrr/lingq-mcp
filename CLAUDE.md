@@ -42,22 +42,23 @@ The server supports two transport modes via the `TRANSPORT_MODE` environment var
    - Set `TRANSPORT_MODE=stdio`
 
 2. **http mode** (Railway/n8n deployment) - **Default**
-   - Uses HTTP/SSE (Server-Sent Events) for MCP protocol
+   - Uses HTTP Streamable transport (MCP SDK v1.22.0+)
    - Authentication required (Bearer token)
    - Accessible over network for remote integration
    - Set `TRANSPORT_MODE=http` or leave unset (default)
 
 **HTTP Mode Architecture:**
 - **Railway hosting:** Provides HTTPS, auto-scaling, environment variables, and health checks
-- **SSE Transport:** Long-lived HTTP connection for bidirectional MCP communication
-- **Per-connection servers:** Each HTTP/SSE connection gets its own MCP server instance
+- **Streamable HTTP:** POST-only endpoint for stateless request/response
+- **Stateless servers:** Each HTTP request creates a new MCP server instance (no session management)
+- **JSON responses:** Uses `enableJsonResponse: true` for direct JSON instead of streaming
 
 **HTTP Mode Authentication Flow:**
-1. Client (n8n) connects to `https://your-app.railway.app/mcp`
+1. Client (n8n) POSTs to `https://your-app.railway.app/mcp`
 2. Must include `Authorization: Bearer YOUR_TOKEN` header
 3. Server validates token against `AUTH_TOKEN` environment variable
-4. If valid, establishes SSE connection for MCP communication
-5. All MCP tools are then accessible over this authenticated connection
+4. If valid, processes the MCP request and returns JSON response
+5. All MCP tools are accessible via authenticated POST requests
 
 **HTTP Mode Security Layers:**
 - Helmet: Security headers (XSS protection, content security policy, etc.)

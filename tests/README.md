@@ -4,7 +4,7 @@ Integration tests for the LingQ MCP Server deployment.
 
 ## Overview
 
-These tests verify that the Railway-deployed MCP server is working correctly with HTTP/SSE transport and Bearer token authentication.
+These tests verify that the Railway-deployed MCP server is working correctly with HTTP Streamable transport and Bearer token authentication.
 
 ## Running Tests
 
