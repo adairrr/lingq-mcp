@@ -2,7 +2,7 @@
 /**
  * Integration Test for LingQ MCP Server
  *
- * Tests the Railway deployment with HTTP/SSE transport and Bearer token authentication.
+ * Tests the Railway deployment with HTTP Streamable transport and Bearer token authentication.
  *
  * Usage:
  *   pnpm test:integration
@@ -13,7 +13,7 @@
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 // Configuration from environment variables
 const SERVER_URL = process.env.MCP_SERVER_URL || 'https://lingq-mcp-production.up.railway.app/mcp';
@@ -35,11 +35,13 @@ interface TestResult {
 class MCPIntegrationTest {
   private client: Client | null = null;
   private results: TestResult[] = [];
+  private serverUrl: string;
+  private authToken: string;
 
-  constructor(
-    private serverUrl: string,
-    private authToken: string
-  ) {}
+  constructor(serverUrl: string, authToken: string) {
+    this.serverUrl = serverUrl;
+    this.authToken = authToken;
+  }
 
   /**
    * Custom fetch function that includes Bearer token authentication
@@ -48,7 +50,6 @@ class MCPIntegrationTest {
     return async (url: RequestInfo | URL, init?: RequestInit) => {
       const headers = new Headers(init?.headers || {});
       headers.set('Authorization', `Bearer ${this.authToken}`);
-      headers.set('Accept', 'text/event-stream');
 
       return fetch(url, {
         ...init,
@@ -73,12 +74,10 @@ class MCPIntegrationTest {
         }
       );
 
-      const transport = new SSEClientTransport(
+      const transport = new StreamableHTTPClientTransport(
         new URL(this.serverUrl),
         {
-          eventSourceInit: {
-            fetch: this.createAuthFetch()
-          }
+          fetch: this.createAuthFetch()
         }
       );
 

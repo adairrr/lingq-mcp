@@ -6,7 +6,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -381,6 +381,24 @@ const tools: Tool[] = [
   }
 ];
 
+// Helper function to create and configure an MCP server instance
+function createMCPServer(): Server {
+  const server = new Server(
+    {
+      name: 'lingq-server',
+      version: '1.0.0'
+    },
+    {
+      capabilities: {
+        tools: {}
+      }
+    }
+  );
+
+  setupMCPHandlers(server);
+  return server;
+}
+
 // Helper function to set up MCP server request handlers
 function setupMCPHandlers(server: Server) {
   // List available tools
@@ -715,7 +733,8 @@ const limiter = rateLimit({
 });
 app.use('/mcp', limiter);
 
-app.use(express.json());
+// Increase body size limit to 1MB for large article imports
+app.use(express.json({ limit: '1mb' }));
 
 // Health check endpoint (no auth required)
 app.get('/health', (req, res) => {
@@ -726,66 +745,44 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Store active MCP server instances by session ID
-const mcpServers = new Map<string, Server>();
-
-// MCP SSE endpoint - GET (establish SSE stream)
-app.get('/mcp', authenticateToken, async (req, res) => {
-  console.log('New MCP SSE connection established');
-
-  // Set up SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-
-  // Create MCP server instance for this connection
-  const server = new Server(
-    {
-      name: 'lingq-server',
-      version: '1.0.0'
-    },
-    {
-      capabilities: {
-        tools: {}
-      }
-    }
-  );
-
-  // Set up request handlers
-  setupMCPHandlers(server);
-
-  // Create SSE transport for this connection
-  const transport = new SSEServerTransport('/mcp', res);
-  await server.connect(transport);
-
-  // Get session ID from the query parameter
-  const sessionId = transport.sessionId;
-  if (sessionId) {
-    mcpServers.set(sessionId, server);
-    console.log(`Stored server instance for session: ${sessionId}`);
-  }
-
-  // Handle client disconnect
-  req.on('close', () => {
-    console.log('MCP SSE connection closed');
-    if (sessionId) {
-      mcpServers.delete(sessionId);
-      console.log(`Removed server instance for session: ${sessionId}`);
-    }
-  });
-});
-
-// MCP SSE endpoint - POST (send messages)
+// MCP endpoint - POST (StreamableHTTP transport)
 app.post('/mcp', authenticateToken, async (req, res) => {
-  console.log('Received MCP POST request');
+  console.log('MCP request received');
 
   try {
-    // The SSE transport should handle this automatically
-    // Just acknowledge the receipt
-    res.status(202).json({ status: 'accepted' });
+    // Create a new transport for this request (stateless pattern)
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // Stateless - no session management
+      enableJsonResponse: true        // Use JSON responses instead of SSE
+    });
+
+    // Clean up transport when response completes
+    res.on('close', () => {
+      transport.close();
+    });
+
+    // Create and configure MCP server instance
+    const server = createMCPServer();
+
+    // Connect server to transport
+    await server.connect(transport);
+
+    // Handle the request
+    await transport.handleRequest(req, res, req.body);
   } catch (error: any) {
-    console.error('Error handling MCP POST:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error handling MCP request:', error);
+
+    // Only send error if headers haven't been sent yet
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32603,
+          message: 'Internal server error'
+        },
+        id: null
+      });
+    }
   }
 });
 
@@ -795,20 +792,7 @@ if (TRANSPORT_MODE === 'stdio') {
   console.error('Starting LingQ MCP Server in stdio mode...');
   console.error('Note: AUTH_TOKEN not required in stdio mode (local only)');
 
-  const server = new Server(
-    {
-      name: 'lingq-server',
-      version: '1.0.0'
-    },
-    {
-      capabilities: {
-        tools: {}
-      }
-    }
-  );
-
-  // Set up request handlers
-  setupMCPHandlers(server);
+  const server = createMCPServer();
 
   // Connect via stdio
   const transport = new StdioServerTransport();
@@ -824,7 +808,7 @@ if (TRANSPORT_MODE === 'stdio') {
 
   app.listen(PORT, () => {
     console.log(`LingQ MCP Server running on port ${PORT}`);
-    console.log(`Transport mode: HTTP/SSE`);
+    console.log(`Transport mode: HTTP Streamable`);
     console.log(`Health check: http://localhost:${PORT}/health`);
     console.log(`MCP endpoint: http://localhost:${PORT}/mcp (requires authentication)`);
   });
