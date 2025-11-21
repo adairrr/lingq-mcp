@@ -696,6 +696,10 @@ function setupMCPHandlers(server: Server) {
 // Create Express app (only for HTTP mode)
 const app = express();
 
+// Trust proxy - required for Railway and other hosting platforms
+// This allows express-rate-limit to correctly identify users behind proxies
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
