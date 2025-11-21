@@ -4,12 +4,12 @@ A Model Context Protocol (MCP) server for LingQ API integration, enabling AI age
 
 **Primary Use Cases:**
 - **n8n workflows**: Automated Korean text import and content management
-- **Claude Desktop**: AI-powered language learning assistant with direct LingQ access
+- **Claude Code**: AI-powered language learning assistant with direct LingQ access
 - **API automation**: Programmatic lesson creation and vocabulary management
 
 ## Features
 
-- **Dual Transport Modes**: stdio for local Claude Desktop, HTTP/SSE for remote n8n integration
+- **Dual Transport Modes**: stdio for local development, HTTP/SSE for remote n8n integration
 - **13 MCP Tools**: Complete LingQ API coverage including lessons, vocabulary, and collections
 - **Optimized for AI**: Minimal mode reduces token usage by 70-90%
 - **Meta Search Functions**: Server-side pagination for efficient lesson/collection searches
@@ -49,32 +49,6 @@ TRANSPORT_MODE=stdio node dist/index.js
 ```
 
 ## Configuration
-
-### Claude Desktop Integration
-
-The server runs in **stdio mode** for local Claude Desktop integration.
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "lingq": {
-      "command": "node",
-      "args": ["/absolute/path/to/dist/index.js"],
-      "env": {
-        "LINGQ_API_KEY": "your_api_key_here",
-        "TRANSPORT_MODE": "stdio"
-      }
-    }
-  }
-}
-```
-
-After making code changes:
-1. Run `pnpm run build`
-2. Restart Claude Desktop completely
 
 ### Railway Deployment (n8n Integration)
 
@@ -222,7 +196,7 @@ src/
 ```
 
 **Transport Modes:**
-- **stdio**: Local stdin/stdout for Claude Desktop (no auth)
+- **stdio**: Local stdin/stdout for development (no auth)
 - **http**: HTTP/SSE for remote access (Bearer token required)
 
 **Security (HTTP Mode):**
@@ -263,11 +237,6 @@ pnpm run dev
 ### 401 Unauthorized (Railway)
 - Verify `AUTH_TOKEN` matches n8n config
 - Check header format: `Authorization: Bearer TOKEN`
-
-### Claude Desktop not seeing tools
-- Rebuild: `pnpm run build`
-- Restart Claude Desktop completely
-- Verify config path is absolute
 
 ## Resources
 

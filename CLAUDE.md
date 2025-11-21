@@ -35,10 +35,10 @@ src/
 
 The server supports two transport modes via the `TRANSPORT_MODE` environment variable:
 
-1. **stdio mode** (Local Claude Desktop)
+1. **stdio mode** (Local development)
    - Uses stdin/stdout for communication
    - No authentication required (local process only)
-   - Perfect for local development and Claude Desktop integration
+   - Perfect for local development and testing
    - Set `TRANSPORT_MODE=stdio`
 
 2. **http mode** (Railway/n8n deployment) - **Default**
@@ -68,7 +68,7 @@ The server supports two transport modes via the `TRANSPORT_MODE` environment var
 **Stdio Mode Security:**
 - No network exposure (local process only)
 - No authentication needed (trust local machine)
-- Only Claude Desktop or other local MCP clients can connect
+- Only local MCP clients (like Claude Code) can connect
 
 ### Key Design Patterns
 
@@ -140,7 +140,7 @@ timeout 2 node dist/index.js 2>&1 | grep "running"
 
 **Optional:**
 - `TRANSPORT_MODE` - Transport layer mode (default: "http")
-  - `stdio` - Local stdio transport for Claude Desktop
+  - `stdio` - Local stdio transport for development/testing
   - `http` - HTTP/SSE transport for Railway/n8n
 - `PORT` - Server port (default: 3000, Railway sets automatically) [HTTP mode only]
 - `NODE_ENV` - Set to "production" in Railway
@@ -305,45 +305,11 @@ HTTP Request → Process Text → MCP Tool (lingq_create_lesson) → Success Not
 - Use `minimal: true` (default) for all list operations
 - Set `maxPages` to limit search depth (default: 20 pages = ~1000 lessons)
 
-### Local Development (Claude Desktop)
+### Local Development & Testing
 
-**Transport Mode:** Uses stdio mode for local integration.
+**Testing HTTP Mode Locally:**
 
-**Config location (macOS):**
-```
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
-
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "lingq": {
-      "command": "node",
-      "args": ["/absolute/path/to/dist/index.js"],
-      "env": {
-        "LINGQ_API_KEY": "your_api_key_here",
-        "TRANSPORT_MODE": "stdio"
-      }
-    }
-  }
-}
-```
-
-**Important Notes:**
-- `TRANSPORT_MODE=stdio` enables local stdio communication
-- `AUTH_TOKEN` is NOT required in stdio mode (local process only)
-- Server runs as a subprocess of Claude Desktop
-- No network exposure in stdio mode
-
-**After code changes:**
-1. Rebuild: `pnpm run build`
-2. Restart Claude Desktop completely
-3. Verify tools appear in available tools list
-
-**Testing HTTP Mode Locally (optional):**
-
-To test Railway deployment behavior locally:
+To test Railway deployment behavior locally before deploying:
 ```bash
 # Set environment variables
 export LINGQ_API_KEY="your_key"
@@ -391,19 +357,11 @@ curl -H "Authorization: Bearer your_token" http://localhost:3000/mcp
 
 ## Testing Strategy
 
-### Testing MCP Tools in Claude Desktop
-
-**IMPORTANT:** When testing MCP tools that are installed on Claude Desktop itself:
-- **Option 1:** Restart Claude Desktop completely after rebuilding to load new changes
-- **Option 2:** Test the built code directly from the command line using the compiled files in `dist/` (since you're already in the MCP directory), bypassing the MCP server instance running in Claude Desktop
-
-If you make changes and test via the MCP server without restarting Claude Desktop, the old version will still be running and your changes won't be reflected.
-
 ### Manual Testing
 
 1. **Build test:** `pnpm run build`
 2. **Startup test:** Run with valid API key
-3. **Integration test:** Use with Claude Desktop
+3. **Integration test:** Use with n8n MCP client
 4. **API test:** Call `lingq_get_languages` to verify auth
 
 ### Test Lesson Creation
