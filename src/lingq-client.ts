@@ -167,6 +167,7 @@ export class LingQClient {
 
     if (lessonData.collection) data.collection = lessonData.collection;
     if (lessonData.original_url) data.original_url = lessonData.original_url;
+    if (lessonData.tags && lessonData.tags.length > 0) data.tags = lessonData.tags;
 
     const response = await this.apiV3.post(
       `/${languageCode}/lessons/`,

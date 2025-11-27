@@ -83,6 +83,7 @@ export interface CreateLessonRequest {
   collection?: number;
   share_status?: 'private' | 'shared';
   original_url?: string;
+  tags?: string[];
 }
 
 export interface UpdateCardRequest {

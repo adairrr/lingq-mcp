@@ -79,6 +79,11 @@ const tools: Tool[] = [
         originalUrl: {
           type: 'string',
           description: 'Optional: Source URL if importing from web'
+        },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional: Array of tags for categorizing the lesson'
         }
       },
       required: ['languageCode', 'title', 'text']
@@ -431,13 +436,17 @@ function setupMCPHandlers(server: Server) {
             text: typedArgs.text,
             collection: typedArgs.collectionId,
             share_status: typedArgs.shareStatus || 'private',
-            original_url: typedArgs.originalUrl
+            original_url: typedArgs.originalUrl,
+            tags: typedArgs.tags
           });
+
+          const tagsInfo = typedArgs.tags?.length ? `\nTags: ${typedArgs.tags.join(', ')}` : '';
+
           return {
             content: [
               {
                 type: 'text',
-                text: `Lesson created successfully!\n\nLesson ID: ${lesson.id}\nTitle: ${lesson.title}\nLanguage: ${typedArgs.languageCode}\nStatus: ${lesson.share_status}\n\nYou can now read this lesson in LingQ and create vocabulary cards.`
+                text: `Lesson created successfully!\n\nLesson ID: ${lesson.id}\nTitle: ${lesson.title}\nLanguage: ${typedArgs.languageCode}\nStatus: ${lesson.share_status}${tagsInfo}\n\nYou can now read this lesson in LingQ and create vocabulary cards.`
               }
             ]
           };

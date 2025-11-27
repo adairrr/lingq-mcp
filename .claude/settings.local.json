@@ -3,7 +3,9 @@
     "allow": [
       "Bash(pnpm run build:*)",
       "WebSearch",
-      "WebFetch(domain:forum.lingq.com)"
+      "WebFetch(domain:forum.lingq.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
