@@ -180,7 +180,7 @@ const tools: Tool[] = [
   },
   {
     name: 'lingq_add_tags_to_card',
-    description: 'Add tags to a vocabulary card for organization and categorization',
+    description: 'Add tags to a vocabulary card while preserving existing tags. Duplicates are automatically removed.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -747,30 +747,56 @@ app.get('/health', (req, res) => {
 
 // MCP endpoint - POST (StreamableHTTP transport)
 app.post('/mcp', authenticateToken, async (req, res) => {
-  console.log('MCP request received');
+  const requestId = Date.now().toString(36);
+  console.log(`[${requestId}] MCP request received`);
+
+  let server: Server | null = null;
+  let transport: StreamableHTTPServerTransport | null = null;
+  let cleanedUp = false;
+
+  const cleanup = async () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+
+    try {
+      if (transport) {
+        await transport.close();
+      }
+      if (server) {
+        await server.close();
+      }
+      console.log(`[${requestId}] Cleanup completed`);
+    } catch (cleanupError) {
+      console.error(`[${requestId}] Cleanup error:`, cleanupError);
+    }
+  };
 
   try {
-    // Create a new transport for this request (stateless pattern)
-    const transport = new StreamableHTTPServerTransport({
+    // Create transport for this request (stateless pattern for single-client n8n use)
+    transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // Stateless - no session management
-      enableJsonResponse: true        // Use JSON responses instead of SSE
+      enableJsonResponse: true       // Use JSON responses instead of SSE
     });
 
-    // Clean up transport when response completes
+    // Handle client disconnect during processing
     res.on('close', () => {
-      transport.close();
+      if (!res.writableEnded) {
+        console.log(`[${requestId}] Client disconnected early`);
+      }
+      cleanup();
     });
 
     // Create and configure MCP server instance
-    const server = createMCPServer();
+    server = createMCPServer();
 
     // Connect server to transport
     await server.connect(transport);
 
     // Handle the request
     await transport.handleRequest(req, res, req.body);
+    console.log(`[${requestId}] Request handled successfully`);
   } catch (error: any) {
-    console.error('Error handling MCP request:', error);
+    console.error(`[${requestId}] Error handling MCP request:`, error.message);
 
     // Only send error if headers haven't been sent yet
     if (!res.headersSent) {
@@ -783,6 +809,10 @@ app.post('/mcp', authenticateToken, async (req, res) => {
         id: null
       });
     }
+  } finally {
+    // Ensure cleanup happens even if response was successful
+    // Small delay to allow response to flush
+    setTimeout(cleanup, 100);
   }
 });
 

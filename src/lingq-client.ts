@@ -142,9 +142,16 @@ export class LingQClient {
   async addTagsToCard(
     languageCode: string,
     cardId: number,
-    tags: string[]
+    newTags: string[]
   ): Promise<LingQCard> {
-    return this.updateCard(languageCode, cardId, { tags });
+    // Fetch current card to get existing tags
+    const card = await this.getCard(languageCode, cardId);
+
+    // Merge tags (deduplicate)
+    const mergedTags = [...new Set([...card.tags, ...newTags])];
+
+    // Update with merged tags
+    return this.updateCard(languageCode, cardId, { tags: mergedTags });
   }
 
   // Lesson Methods

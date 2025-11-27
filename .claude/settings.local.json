@@ -1,13 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm run build:*)"
+      "Bash(pnpm run build:*)",
+      "WebSearch",
+      "WebFetch(domain:forum.lingq.com)"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "lingq"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
