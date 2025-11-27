@@ -78,8 +78,10 @@ export interface Collection {
 }
 
 export interface AudioInput {
-  url: string;
-  filename?: string;  // Override filename (inferred from URL if not provided)
+  url?: string;           // URL to download audio from
+  base64Data?: string;    // Base64-encoded audio data (can include data URI prefix)
+  filename?: string;      // Override filename
+  mimeType?: string;      // Override mime type (useful for base64)
 }
 
 export const SUPPORTED_AUDIO_MIMES: Record<string, string[]> = {

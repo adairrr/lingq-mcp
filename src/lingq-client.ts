@@ -192,40 +192,74 @@ export class LingQClient {
       return response.data;
     }
 
-    // With audio: download from URL and upload via multipart/form-data
-    const audioUrl = lessonData.audio.url;
+    // With audio: validate input and get audio buffer
+    const { url, base64Data, filename: inputFilename, mimeType: inputMimeType } = lessonData.audio;
 
-    // Validate URL
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(audioUrl);
-    } catch {
-      throw new Error('Invalid audio URL');
+    // Validate: must have exactly one of url or base64Data
+    if (!url && !base64Data) {
+      throw new Error('Audio requires either url or base64Data');
+    }
+    if (url && base64Data) {
+      throw new Error('Provide either url or base64Data, not both');
     }
 
-    // Download audio from URL
     let audioBuffer: Buffer;
-    try {
-      const audioResponse = await axios.get(audioUrl, {
-        responseType: 'arraybuffer',
-        timeout: 120000,  // 2 min for large files
-        maxContentLength: 100 * 1024 * 1024  // 100MB limit
-      });
-      audioBuffer = Buffer.from(audioResponse.data);
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        throw new Error('Audio URL not found (404)');
-      }
-      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-        throw new Error('Cannot reach audio URL');
-      }
-      throw new Error(`Failed to download audio: ${error.message}`);
-    }
+    let filename: string;
+    let mimeType: string;
 
-    // Determine filename and mime type
-    const urlPath = parsedUrl.pathname;
-    const filename = lessonData.audio.filename || urlPath.split('/').pop() || 'audio.mp3';
-    const mimeType = this.inferMimeType(filename) || 'audio/mpeg';
+    if (base64Data) {
+      // Handle base64 input
+      let base64String = base64Data;
+      let extractedMimeType: string | null = null;
+
+      // Support data URI format: data:audio/mpeg;base64,AAAA...
+      if (base64String.startsWith('data:')) {
+        const matches = base64String.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          extractedMimeType = matches[1];
+          base64String = matches[2];
+        }
+      }
+
+      try {
+        audioBuffer = Buffer.from(base64String, 'base64');
+      } catch {
+        throw new Error('Invalid base64 encoding');
+      }
+
+      filename = inputFilename || 'audio.mp3';
+      mimeType = inputMimeType || extractedMimeType || this.inferMimeType(filename) || 'audio/mpeg';
+
+    } else {
+      // Handle URL input
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url!);
+      } catch {
+        throw new Error('Invalid audio URL');
+      }
+
+      try {
+        const audioResponse = await axios.get(url!, {
+          responseType: 'arraybuffer',
+          timeout: 120000,  // 2 min for large files
+          maxContentLength: 100 * 1024 * 1024  // 100MB limit
+        });
+        audioBuffer = Buffer.from(audioResponse.data);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          throw new Error('Audio URL not found (404)');
+        }
+        if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+          throw new Error('Cannot reach audio URL');
+        }
+        throw new Error(`Failed to download audio: ${error.message}`);
+      }
+
+      const urlPath = parsedUrl.pathname;
+      filename = inputFilename || urlPath.split('/').pop() || 'audio.mp3';
+      mimeType = inputMimeType || this.inferMimeType(filename) || 'audio/mpeg';
+    }
 
     // Build form data
     const form = new FormData();

@@ -88,6 +88,14 @@ const tools: Tool[] = [
         audioUrl: {
           type: 'string',
           description: 'Optional: URL to audio file (MP3, M4A, WAV, OGG). Server will download and attach to lesson.'
+        },
+        audioBase64: {
+          type: 'string',
+          description: 'Optional: Base64-encoded audio data. Can include data URI prefix (data:audio/mpeg;base64,...). Use either audioUrl OR audioBase64, not both.'
+        },
+        audioFilename: {
+          type: 'string',
+          description: 'Optional: Filename for audio file (e.g., "episode1.mp3"). Helps determine format if not using data URI.'
         }
       },
       required: ['languageCode', 'title', 'text']
@@ -435,6 +443,14 @@ function setupMCPHandlers(server: Server) {
         }
 
         case 'lingq_create_lesson': {
+          // Build audio input from either url or base64
+          let audio: { url?: string; base64Data?: string; filename?: string } | undefined;
+          if (typedArgs.audioUrl) {
+            audio = { url: typedArgs.audioUrl, filename: typedArgs.audioFilename };
+          } else if (typedArgs.audioBase64) {
+            audio = { base64Data: typedArgs.audioBase64, filename: typedArgs.audioFilename };
+          }
+
           const lesson = await lingqClient.createLesson(typedArgs.languageCode, {
             title: typedArgs.title,
             text: typedArgs.text,
@@ -442,11 +458,11 @@ function setupMCPHandlers(server: Server) {
             share_status: typedArgs.shareStatus || 'private',
             original_url: typedArgs.originalUrl,
             tags: typedArgs.tags,
-            audio: typedArgs.audioUrl ? { url: typedArgs.audioUrl } : undefined
+            audio
           });
 
           const tagsInfo = typedArgs.tags?.length ? `\nTags: ${typedArgs.tags.join(', ')}` : '';
-          const audioInfo = typedArgs.audioUrl ? '\nAudio: Attached' : '';
+          const audioInfo = audio ? '\nAudio: Attached' : '';
 
           return {
             content: [
