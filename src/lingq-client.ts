@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import FormData from 'form-data';
 import {
   LingQConfig,
   Language,
@@ -14,14 +15,18 @@ import {
   MinimalCard,
   SearchResult,
   FindLessonOptions,
-  FindCollectionOptions
+  FindCollectionOptions,
+  SUPPORTED_AUDIO_MIMES
 } from './types.js';
 
 export class LingQClient {
   private apiV2: AxiosInstance;
   private apiV3: AxiosInstance;
+  private apiKey: string;
 
   constructor(config: LingQConfig) {
+    this.apiKey = config.apiKey;
+
     const headers = {
       'Authorization': `Token ${config.apiKey}`,
       'Content-Type': 'application/json'
@@ -154,25 +159,104 @@ export class LingQClient {
     return this.updateCard(languageCode, cardId, { tags: mergedTags });
   }
 
+  // Audio Helper Methods
+  private inferMimeType(filename: string): string | null {
+    const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
+    for (const [mime, extensions] of Object.entries(SUPPORTED_AUDIO_MIMES)) {
+      if (extensions.includes(ext)) return mime;
+    }
+    return null;
+  }
+
   // Lesson Methods
   async createLesson(
     languageCode: string,
     lessonData: CreateLessonRequest
   ): Promise<Lesson> {
-    const data: any = {
-      title: lessonData.title,
-      text: lessonData.text,
-      share_status: lessonData.share_status || 'private'
-    };
+    // If no audio, use existing JSON approach
+    if (!lessonData.audio) {
+      const data: any = {
+        title: lessonData.title,
+        text: lessonData.text,
+        share_status: lessonData.share_status || 'private'
+      };
 
-    if (lessonData.collection) data.collection = lessonData.collection;
-    if (lessonData.original_url) data.original_url = lessonData.original_url;
-    if (lessonData.tags && lessonData.tags.length > 0) data.tags = lessonData.tags;
+      if (lessonData.collection) data.collection = lessonData.collection;
+      if (lessonData.original_url) data.original_url = lessonData.original_url;
+      if (lessonData.tags && lessonData.tags.length > 0) data.tags = lessonData.tags;
 
-    const response = await this.apiV3.post(
-      `/${languageCode}/lessons/`,
-      data
+      const response = await this.apiV3.post(
+        `/${languageCode}/lessons/`,
+        data
+      );
+      return response.data;
+    }
+
+    // With audio: download from URL and upload via multipart/form-data
+    const audioUrl = lessonData.audio.url;
+
+    // Validate URL
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(audioUrl);
+    } catch {
+      throw new Error('Invalid audio URL');
+    }
+
+    // Download audio from URL
+    let audioBuffer: Buffer;
+    try {
+      const audioResponse = await axios.get(audioUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120000,  // 2 min for large files
+        maxContentLength: 100 * 1024 * 1024  // 100MB limit
+      });
+      audioBuffer = Buffer.from(audioResponse.data);
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error('Audio URL not found (404)');
+      }
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        throw new Error('Cannot reach audio URL');
+      }
+      throw new Error(`Failed to download audio: ${error.message}`);
+    }
+
+    // Determine filename and mime type
+    const urlPath = parsedUrl.pathname;
+    const filename = lessonData.audio.filename || urlPath.split('/').pop() || 'audio.mp3';
+    const mimeType = this.inferMimeType(filename) || 'audio/mpeg';
+
+    // Build form data
+    const form = new FormData();
+    form.append('title', lessonData.title);
+    form.append('text', lessonData.text);
+    form.append('share_status', lessonData.share_status || 'private');
+
+    if (lessonData.collection) form.append('collection', String(lessonData.collection));
+    if (lessonData.original_url) form.append('original_url', lessonData.original_url);
+    if (lessonData.tags && lessonData.tags.length > 0) {
+      lessonData.tags.forEach(tag => form.append('tags', tag));
+    }
+
+    form.append('audio', audioBuffer, {
+      filename,
+      contentType: mimeType
+    });
+
+    const response = await axios.post(
+      `https://www.lingq.com/api/v3/${languageCode}/lessons/`,
+      form,
+      {
+        headers: {
+          ...form.getHeaders(),
+          'Authorization': `Token ${this.apiKey}`
+        },
+        timeout: 120000,
+        maxBodyLength: Infinity
+      }
     );
+
     return response.data;
   }
 

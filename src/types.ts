@@ -77,6 +77,18 @@ export interface Collection {
   type?: string;
 }
 
+export interface AudioInput {
+  url: string;
+  filename?: string;  // Override filename (inferred from URL if not provided)
+}
+
+export const SUPPORTED_AUDIO_MIMES: Record<string, string[]> = {
+  'audio/mpeg': ['.mp3'],
+  'audio/mp4': ['.m4a'],
+  'audio/wav': ['.wav'],
+  'audio/ogg': ['.ogg']
+};
+
 export interface CreateLessonRequest {
   title: string;
   text: string;
@@ -84,6 +96,7 @@ export interface CreateLessonRequest {
   share_status?: 'private' | 'shared';
   original_url?: string;
   tags?: string[];
+  audio?: AudioInput;
 }
 
 export interface UpdateCardRequest {

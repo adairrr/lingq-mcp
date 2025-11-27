@@ -84,6 +84,10 @@ const tools: Tool[] = [
           type: 'array',
           items: { type: 'string' },
           description: 'Optional: Array of tags for categorizing the lesson'
+        },
+        audioUrl: {
+          type: 'string',
+          description: 'Optional: URL to audio file (MP3, M4A, WAV, OGG). Server will download and attach to lesson.'
         }
       },
       required: ['languageCode', 'title', 'text']
@@ -437,16 +441,18 @@ function setupMCPHandlers(server: Server) {
             collection: typedArgs.collectionId,
             share_status: typedArgs.shareStatus || 'private',
             original_url: typedArgs.originalUrl,
-            tags: typedArgs.tags
+            tags: typedArgs.tags,
+            audio: typedArgs.audioUrl ? { url: typedArgs.audioUrl } : undefined
           });
 
           const tagsInfo = typedArgs.tags?.length ? `\nTags: ${typedArgs.tags.join(', ')}` : '';
+          const audioInfo = typedArgs.audioUrl ? '\nAudio: Attached' : '';
 
           return {
             content: [
               {
                 type: 'text',
-                text: `Lesson created successfully!\n\nLesson ID: ${lesson.id}\nTitle: ${lesson.title}\nLanguage: ${typedArgs.languageCode}\nStatus: ${lesson.share_status}${tagsInfo}\n\nYou can now read this lesson in LingQ and create vocabulary cards.`
+                text: `Lesson created successfully!\n\nLesson ID: ${lesson.id}\nTitle: ${lesson.title}\nLanguage: ${typedArgs.languageCode}\nStatus: ${lesson.share_status}${tagsInfo}${audioInfo}\n\nYou can now read this lesson in LingQ and create vocabulary cards.`
               }
             ]
           };
