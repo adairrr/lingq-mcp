@@ -221,10 +221,14 @@ export class LingQClient {
         }
       }
 
-      try {
-        audioBuffer = Buffer.from(base64String, 'base64');
-      } catch {
+      // Validate base64 format (Buffer.from doesn't throw on invalid base64)
+      const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+      if (!base64Regex.test(base64String)) {
         throw new Error('Invalid base64 encoding');
+      }
+      audioBuffer = Buffer.from(base64String, 'base64');
+      if (audioBuffer.length === 0) {
+        throw new Error('Empty audio data');
       }
 
       filename = inputFilename || 'audio.mp3';
@@ -278,20 +282,27 @@ export class LingQClient {
       contentType: mimeType
     });
 
-    const response = await axios.post(
-      `https://www.lingq.com/api/v3/${languageCode}/lessons/`,
-      form,
-      {
-        headers: {
-          ...form.getHeaders(),
-          'Authorization': `Token ${this.apiKey}`
-        },
-        timeout: 120000,
-        maxBodyLength: Infinity
-      }
-    );
+    // Use configured base URL instead of hardcoded URL
+    const baseUrl = this.apiV3.defaults.baseURL || 'https://www.lingq.com/api/v3';
 
-    return response.data;
+    try {
+      const response = await axios.post(
+        `${baseUrl}/${languageCode}/lessons/`,
+        form,
+        {
+          headers: {
+            ...form.getHeaders(),
+            'Authorization': `Token ${this.apiKey}`
+          },
+          timeout: 120000,
+          maxBodyLength: Infinity
+        }
+      );
+      return response.data;
+    } catch (error) {
+      // Use centralized error handler for consistent error messages
+      return this.handleError(error as AxiosError);
+    }
   }
 
   async getLessons(
@@ -354,7 +365,8 @@ export class LingQClient {
     }
 
     // Fuzzy matching: remove punctuation and extra whitespace
-    const clean = (s: string) => s.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+    // Use Unicode-aware pattern to support Korean and other non-ASCII characters
+    const clean = (s: string) => s.replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
     return clean(aNorm) === clean(bNorm);
   }
 
