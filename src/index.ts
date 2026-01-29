@@ -742,116 +742,6 @@ function setupMCPHandlers(server: Server) {
   });
 }
 
-// Create Express app (only for HTTP mode)
-const app = express();
-
-// Trust proxy - required for Railway and other hosting platforms
-// This allows express-rate-limit to correctly identify users behind proxies
-app.set('trust proxy', 1);
-
-// Security middleware
-app.use(helmet());
-app.use(cors({
-  origin: ALLOWED_ORIGINS,
-  credentials: true
-}));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use('/mcp', limiter);
-
-// Increase body size limit to 1MB for large article imports
-app.use(express.json({ limit: '1mb' }));
-
-// Health check endpoint (no auth required)
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
-});
-
-// MCP endpoint - POST (StreamableHTTP transport)
-app.post('/mcp', authenticateToken, async (req, res) => {
-  const requestId = Date.now().toString(36);
-  console.log(`[${requestId}] MCP request received`);
-
-  let server: Server | null = null;
-  let transport: StreamableHTTPServerTransport | null = null;
-  let cleanedUp = false;
-
-  const cleanup = async () => {
-    if (cleanedUp) return;
-    cleanedUp = true;
-
-    try {
-      if (transport) {
-        await transport.close();
-      }
-      if (server) {
-        await server.close();
-      }
-      console.log(`[${requestId}] Cleanup completed`);
-    } catch (cleanupError) {
-      console.error(`[${requestId}] Cleanup error:`, cleanupError);
-    }
-  };
-
-  try {
-    // Create transport for this request (stateless pattern for single-client n8n use)
-    transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // Stateless - no session management
-      enableJsonResponse: true       // Use JSON responses instead of SSE
-    });
-
-    // Handle response completion (proper cleanup timing)
-    res.on('finish', () => {
-      console.log(`[${requestId}] Response finished, cleaning up`);
-      cleanup();
-    });
-
-    // Handle client disconnect during processing
-    res.on('close', () => {
-      if (!res.writableEnded) {
-        console.log(`[${requestId}] Client disconnected early`);
-        cleanup();
-      }
-    });
-
-    // Create and configure MCP server instance
-    server = createMCPServer();
-
-    // Connect server to transport
-    await server.connect(transport);
-
-    // Handle the request
-    await transport.handleRequest(req, res, req.body);
-    console.log(`[${requestId}] Request handled successfully`);
-  } catch (error: any) {
-    console.error(`[${requestId}] Error handling MCP request:`, error.message);
-
-    // Only send error if headers haven't been sent yet
-    if (!res.headersSent) {
-      res.status(500).json({
-        jsonrpc: '2.0',
-        error: {
-          code: -32603,
-          message: 'Internal server error'
-        },
-        id: null
-      });
-    }
-  } finally {
-    // Cleanup is handled by res.on('finish') and res.on('close') events
-    // This ensures proper timing - cleanup only runs after response is fully sent
-  }
-});
-
 // Start the server based on transport mode
 if (TRANSPORT_MODE === 'stdio') {
   // Stdio mode: For local Claude Desktop integration
@@ -871,6 +761,116 @@ if (TRANSPORT_MODE === 'stdio') {
 } else {
   // HTTP mode: For Railway/n8n integration
   console.log('Starting LingQ MCP Server in HTTP mode...');
+
+  // Create Express app only in HTTP mode
+  const app = express();
+
+  // Trust proxy - required for Railway and other hosting platforms
+  // This allows express-rate-limit to correctly identify users behind proxies
+  app.set('trust proxy', 1);
+
+  // Security middleware
+  app.use(helmet());
+  app.use(cors({
+    origin: ALLOWED_ORIGINS,
+    credentials: true
+  }));
+
+  // Rate limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.'
+  });
+  app.use('/mcp', limiter);
+
+  // Increase body size limit to 1MB for large article imports
+  app.use(express.json({ limit: '1mb' }));
+
+  // Health check endpoint (no auth required)
+  app.get('/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0'
+    });
+  });
+
+  // MCP endpoint - POST (StreamableHTTP transport)
+  app.post('/mcp', authenticateToken, async (req, res) => {
+    const requestId = Date.now().toString(36);
+    console.log(`[${requestId}] MCP request received`);
+
+    let server: Server | null = null;
+    let transport: StreamableHTTPServerTransport | null = null;
+    let cleanedUp = false;
+
+    const cleanup = async () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+
+      try {
+        if (transport) {
+          await transport.close();
+        }
+        if (server) {
+          await server.close();
+        }
+        console.log(`[${requestId}] Cleanup completed`);
+      } catch (cleanupError) {
+        console.error(`[${requestId}] Cleanup error:`, cleanupError);
+      }
+    };
+
+    try {
+      // Create transport for this request (stateless pattern for single-client n8n use)
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined, // Stateless - no session management
+        enableJsonResponse: true       // Use JSON responses instead of SSE
+      });
+
+      // Handle response completion (proper cleanup timing)
+      res.on('finish', () => {
+        console.log(`[${requestId}] Response finished, cleaning up`);
+        cleanup();
+      });
+
+      // Handle client disconnect during processing
+      res.on('close', () => {
+        if (!res.writableEnded) {
+          console.log(`[${requestId}] Client disconnected early`);
+          cleanup();
+        }
+      });
+
+      // Create and configure MCP server instance
+      server = createMCPServer();
+
+      // Connect server to transport
+      await server.connect(transport);
+
+      // Handle the request
+      await transport.handleRequest(req, res, req.body);
+      console.log(`[${requestId}] Request handled successfully`);
+    } catch (error: any) {
+      console.error(`[${requestId}] Error handling MCP request:`, error.message);
+
+      // Only send error if headers haven't been sent yet
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error'
+          },
+          id: null
+        });
+      }
+    } finally {
+      // Cleanup is handled by res.on('finish') and res.on('close') events
+      // This ensures proper timing - cleanup only runs after response is fully sent
+    }
+  });
 
   app.listen(PORT, () => {
     console.log(`LingQ MCP Server running on port ${PORT}`);
