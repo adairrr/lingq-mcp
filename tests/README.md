@@ -11,7 +11,7 @@ These tests verify that the Railway-deployed MCP server is working correctly wit
 ### Test Railway Deployment
 
 ```bash
-pnpm test:railway
+bun test:railway
 ```
 
 This tests the production Railway deployment at `https://lingq-mcp-production.up.railway.app/mcp`.
@@ -19,7 +19,7 @@ This tests the production Railway deployment at `https://lingq-mcp-production.up
 ### Test Custom Server
 
 ```bash
-MCP_SERVER_URL=https://your-server.com/mcp MCP_AUTH_TOKEN=your_token pnpm test:integration
+MCP_SERVER_URL=https://your-server.com/mcp MCP_AUTH_TOKEN=your_token bun test:integration
 ```
 
 ## Environment Variables

@@ -8,7 +8,7 @@ This is a Model Context Protocol (MCP) server that integrates with the LingQ API
 
 **Tech Stack:**
 - TypeScript with ES Modules
-- Node.js runtime
+- Bun runtime
 - MCP SDK v1.22.0
 - Express.js (HTTP server)
 - Axios for HTTP requests
@@ -105,20 +105,21 @@ The server supports two transport modes via the `TRANSPORT_MODE` environment var
 ### Building
 
 ```bash
-pnpm run build      # Compile TypeScript
-pnpm run watch      # Watch mode for development
-pnpm run dev        # Build and run
+bun run build      # Compile TypeScript
+bun run watch      # Watch mode for development
+bun run dev        # Build and run
+bun run dev:ts     # Run TypeScript directly (no build needed)
 ```
 
 ### Testing
 
 ```bash
 # Test build
-pnpm run build && echo "✓ Build successful"
+bun run build && echo "✓ Build successful"
 
 # Test server startup (requires LINGQ_API_KEY)
 export LINGQ_API_KEY="your_key"
-timeout 2 node dist/index.js 2>&1 | grep "running"
+timeout 2 bun dist/index.js 2>&1 | grep "running"
 ```
 
 ### Code Style
@@ -242,13 +243,13 @@ lingq_get_lessons({ languageCode: "ko", minimal: false })
 ```bash
 # Clean build
 rm -rf dist/
-pnpm run build
+bun run build
 
 # Check TypeScript errors without emitting
-npx tsc --noEmit
+bun tsc --noEmit
 
 # Verify JavaScript syntax
-node -c dist/index.js
+bun dist/index.js
 
 # Check import statements
 grep "from.*\.js" src/*.ts
@@ -320,7 +321,7 @@ HTTP Request → Process Text → MCP Tool (lingq_create_lesson) → Success Not
 {
   "mcpServers": {
     "lingq": {
-      "command": "node",
+      "command": "bun",
       "args": ["/path/to/lingq-mcp/dist/index.js"],
       "env": {
         "LINGQ_API_KEY": "your_api_key_here",
@@ -332,7 +333,7 @@ HTTP Request → Process Text → MCP Tool (lingq_create_lesson) → Success Not
 ```
 
 **Setup:**
-1. Build the project: `pnpm run build`
+1. Build the project: `bun run build`
 2. Configure .mcp.json with stdio transport (as shown above)
 3. Run `/mcp` in Claude Code to connect
 4. All MCP tools will be available locally
@@ -354,8 +355,8 @@ export AUTH_TOKEN="your_token"
 export TRANSPORT_MODE="http"  # or omit (default)
 
 # Build and run
-pnpm run build
-node dist/index.js
+bun run build
+bun dist/index.js
 
 # Test in another terminal
 curl http://localhost:3000/health
@@ -390,13 +391,13 @@ curl -H "Authorization: Bearer your_token" http://localhost:3000/mcp
 2. **Using wrong API version** - Some endpoints only on v2 or v3
 3. **Missing error handling** - Users need clear error messages
 4. **Hardcoding values** - Use environment variables
-5. **Not rebuilding** - Changes require `pnpm run build`
+5. **Not rebuilding** - Changes require `bun run build`
 
 ## Testing Strategy
 
 ### Manual Testing
 
-1. **Build test:** `pnpm run build`
+1. **Build test:** `bun run build`
 2. **Startup test:** Run with valid API key
 3. **Integration test:** Use with n8n MCP client
 4. **API test:** Call `lingq_get_languages` to verify auth
@@ -429,7 +430,7 @@ text: "안녕하세요. 한국어를 공부하고 있습니다."
    - Go to https://railway.app
    - Click "New Project" → "Deploy from GitHub repo"
    - Select your lingq-mcp-server repository
-   - Railway auto-detects Node.js and uses `railway.json` config
+   - Railway uses `railway.json` config (installs Bun during build)
 
 3. **Configure Environment Variables**
    In Railway dashboard → Variables tab:
@@ -499,7 +500,7 @@ git push
 
 Railway automatically:
 1. Pulls latest code
-2. Runs `pnpm install && pnpm run build`
+2. Runs `bun install && bun run build`
 3. Restarts with zero downtime
 4. Uses new environment variables if changed
 
@@ -613,8 +614,8 @@ Ideas for extending the server:
 
 Update dependencies periodically:
 ```bash
-pnpm update
-pnpm run build  # Verify no breaking changes
+bun update
+bun run build  # Verify no breaking changes
 ```
 
 ### API Changes

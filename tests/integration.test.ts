@@ -5,7 +5,7 @@
  * Tests the Railway deployment with HTTP Streamable transport and Bearer token authentication.
  *
  * Usage:
- *   pnpm test:integration
+ *   bun test:integration
  *
  * Environment Variables:
  *   MCP_SERVER_URL - URL of the MCP server (default: https://lingq-mcp-production.up.railway.app/mcp)

@@ -20,7 +20,7 @@ A Model Context Protocol (MCP) server for LingQ API integration, enabling AI age
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm
+- Bun (https://bun.sh)
 - LingQ API key from https://www.lingq.com/en/accounts/apikey/
 
 ### Installation
@@ -31,7 +31,7 @@ git clone https://github.com/yourusername/lingq-mcp.git
 cd lingq-mcp
 
 # Install dependencies
-pnpm install
+bun install
 
 # Create environment file
 cp .env.example .env
@@ -42,10 +42,10 @@ cp .env.example .env
 
 ```bash
 # Build the project
-pnpm run build
+bun run build
 
 # Test the server
-TRANSPORT_MODE=stdio node dist/index.js
+TRANSPORT_MODE=stdio bun dist/index.js
 ```
 
 ## Configuration
@@ -68,7 +68,7 @@ git push -u origin main
 - Go to https://railway.app
 - Create "New Project" → "Deploy from GitHub repo"
 - Select your repository
-- Railway auto-detects Node.js
+- Railway uses `railway.json` config (installs Bun during build)
 
 #### 2. Configure Environment Variables
 
@@ -208,7 +208,7 @@ src/
 ## Tech Stack
 
 - TypeScript with ES Modules
-- Node.js runtime
+- Bun runtime
 - MCP SDK v1.22.0
 - Express.js (HTTP server)
 - Axios (HTTP client)
@@ -218,13 +218,16 @@ src/
 
 ```bash
 # Build
-pnpm run build
+bun run build
 
 # Watch mode
-pnpm run watch
+bun run watch
 
 # Build and run
-pnpm run dev
+bun run dev
+
+# Run TypeScript directly (no build)
+bun run dev:ts
 ```
 
 ## Troubleshooting
@@ -232,7 +235,7 @@ pnpm run dev
 ### Server not starting
 - Verify `LINGQ_API_KEY` is set
 - Check logs for TypeScript errors
-- Run `pnpm run build` to recompile
+- Run `bun run build` to recompile
 
 ### 401 Unauthorized (Railway)
 - Verify `AUTH_TOKEN` matches n8n config

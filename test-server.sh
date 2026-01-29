@@ -14,7 +14,7 @@ fi
 
 # Build the project
 echo "Building project..."
-pnpm run build
+bun run build
 
 if [ $? -ne 0 ]; then
     echo "Build failed!"
@@ -26,7 +26,7 @@ echo ""
 
 # Test that the server starts
 echo "Testing server startup..."
-timeout 5 node dist/index.js 2>&1 | head -1
+timeout 5 bun dist/index.js 2>&1 | head -1
 
 echo ""
 echo "Server test complete!"
