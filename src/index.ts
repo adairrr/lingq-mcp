@@ -809,12 +809,18 @@ app.post('/mcp', authenticateToken, async (req, res) => {
       enableJsonResponse: true       // Use JSON responses instead of SSE
     });
 
+    // Handle response completion (proper cleanup timing)
+    res.on('finish', () => {
+      console.log(`[${requestId}] Response finished, cleaning up`);
+      cleanup();
+    });
+
     // Handle client disconnect during processing
     res.on('close', () => {
       if (!res.writableEnded) {
         console.log(`[${requestId}] Client disconnected early`);
+        cleanup();
       }
-      cleanup();
     });
 
     // Create and configure MCP server instance
@@ -841,9 +847,8 @@ app.post('/mcp', authenticateToken, async (req, res) => {
       });
     }
   } finally {
-    // Ensure cleanup happens even if response was successful
-    // Small delay to allow response to flush
-    setTimeout(cleanup, 100);
+    // Cleanup is handled by res.on('finish') and res.on('close') events
+    // This ensures proper timing - cleanup only runs after response is fully sent
   }
 });
 
