@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { timingSafeEqual } from 'crypto';
 
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 const TRANSPORT_MODE = process.env.TRANSPORT_MODE || 'http';
@@ -28,7 +29,20 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
     return;
   }
 
-  if (token !== AUTH_TOKEN) {
+  // Runtime guard for AUTH_TOKEN (TypeScript narrowing doesn't work after process.exit)
+  if (!AUTH_TOKEN) {
+    res.status(500).json({
+      error: 'Server Configuration Error',
+      message: 'Authentication not configured'
+    });
+    return;
+  }
+
+  // Use timing-safe comparison to prevent timing attacks
+  const tokenBuffer = Buffer.from(token);
+  const authBuffer = Buffer.from(AUTH_TOKEN);
+
+  if (tokenBuffer.length !== authBuffer.length || !timingSafeEqual(tokenBuffer, authBuffer)) {
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Invalid authentication token'
