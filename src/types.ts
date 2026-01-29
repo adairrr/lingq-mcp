@@ -34,10 +34,10 @@ export interface LingQCard {
   words: string[];
   tags: string[];
   hints: Hint[];
-  transliteration: Record<string, any>;
+  transliteration: Record<string, unknown>;
   gTags: string[];
   wordTags: string[];
-  readings: Record<string, any>;
+  readings: Record<string, unknown>;
   writings: string[];
 }
 
@@ -54,6 +54,10 @@ export interface Lesson {
   description?: string;
   text?: string;
   collection?: number;
+  collectionId?: number;      // Alternative field name from some API responses
+  collectionTitle?: string;   // Collection title when included
+  pubDate?: string;           // Publication date
+  status?: string;            // Lesson status (different from share_status)
   share_status: 'private' | 'shared';
   level?: string;
   created?: string;
